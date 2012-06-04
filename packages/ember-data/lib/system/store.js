@@ -335,7 +335,7 @@ DS.Store = Ember.Object.extend({
 
       // let the adapter set the data, possibly async
       var adapter = get(this, '_adapter');
-      if (adapter && adapter.find) { adapter.find(this, type, id); }
+      if (adapter && adapter.find) { adapter.find(this, type, id, record); }
       else { throw fmt("Adapter is either null or does not implement `find` method", this); }
     }
 
@@ -353,12 +353,12 @@ DS.Store = Ember.Object.extend({
 
     @param {Class} type A model class
     @param {Array} ids An array of ids
-    @param {Object} query
+    @param {DS.ManyArray} manyArray
 
-    @returns {Array} An Array of all clientIds for the
+    @returns {DS.ManyArray} An Array of all records for the
       specified ids.
   */
-  fetchMany: function(type, ids, query) {
+  findMany: function(type, ids, manyArray) {
     var typeMap = this.typeMapFor(type),
         idToClientIdMap = typeMap.idToCid,
         dataCache = typeMap.cidToHash,
@@ -401,22 +401,22 @@ DS.Store = Ember.Object.extend({
       needed = null;
     }
 
-    // If there are any needed ids, ask the adapter to load them
-    if ((needed && get(needed, 'length') > 0) || query) {
-      var adapter = get(this, '_adapter');
-      if (adapter && adapter.findMany) { adapter.findMany(this, type, needed, query); }
-      else { throw fmt("Adapter is either null or does not implement `findMany` method", this); }
+    if (!manyArray) {
+      manyArray = this.createManyArray(type, clientIds);
+    } else {
+      set(manyArray, 'content', clientIds);
     }
 
-    return clientIds;
-  },
+    // If there are any needed ids, ask the adapter to load them
+    if ((needed && get(needed, 'length') > 0)) {
+      var adapter = get(this, '_adapter');
+      if (adapter && adapter.findMany) { adapter.findMany(this, type, needed, manyArray); }
+      else { throw fmt("Adapter is either null or does not implement `findMany` method", this); }
+    } else {
+      set(manyArray, 'isLoaded', true);
+    }
 
-  /** @private
-  */
-  findMany: function(type, ids, query) {
-    var clientIds = this.fetchMany(type, ids, query);
-
-    return this.createManyArray(type, clientIds);
+    return manyArray;
   },
 
   findQuery: function(type, query) {
@@ -428,7 +428,6 @@ DS.Store = Ember.Object.extend({
   },
 
   findAll: function(type) {
-
     var typeMap = this.typeMapFor(type),
         findAllCache = typeMap.findAllCache;
 
@@ -438,7 +437,7 @@ DS.Store = Ember.Object.extend({
     this.registerRecordArray(array, type);
 
     var adapter = get(this, '_adapter');
-    if (adapter && adapter.findAll) { adapter.findAll(this, type); }
+    if (adapter && adapter.findAll) { adapter.findAll(this, type, array); }
 
     typeMap.findAllCache = array;
     return array;
@@ -457,6 +456,10 @@ DS.Store = Ember.Object.extend({
     this.registerRecordArray(array, type, filter);
 
     return array;
+  },
+
+  didFindRecord: function(record, hash) {
+    this.load(record.constructor, hash);
   },
 
   // ............

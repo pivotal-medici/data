@@ -117,36 +117,36 @@ DS.RESTAdapter = DS.Adapter.extend({
     });
   },
 
-  find: function(store, type, id) {
+  find: function(store, type, id, record) {
     var root = this.rootForType(type);
 
     this.ajax(this.buildURL(root, id), "GET", {
       success: function(json) {
         this.sideload(store, type, json, root);
-        store.load(type, json[root]);
+        store.didFindRecord(record, json[root]);
       }
     });
   },
 
-  findMany: function(store, type, ids) {
+  findMany: function(store, type, ids, recordArray) {
     var root = this.rootForType(type), plural = this.pluralize(root);
 
     this.ajax(this.buildURL(root), "GET", {
       data: { ids: ids },
       success: function(json) {
         this.sideload(store, type, json, plural);
-        store.loadMany(type, json[plural]);
+        recordArray.load(json[plural]);
       }
     });
   },
 
-  findAll: function(store, type) {
+  findAll: function(store, type, recordArray) {
     var root = this.rootForType(type), plural = this.pluralize(root);
 
     this.ajax(this.buildURL(root), "GET", {
       success: function(json) {
         this.sideload(store, type, json, plural);
-        store.loadMany(type, json[plural]);
+        recordArray.load(json[plural]);
       }
     });
   },
